@@ -1,0 +1,39 @@
+name: ZareonGuild
+version: '${project.version}'
+main: com.zareon.guild.ZareonGuild
+api-version: '1.21'
+prefix: ZareonGuild
+authors: [Zareon]
+description: Advanced guild system with private blocks, custom TNT, and more
+depend: [Vault, PlaceholderAPI]
+softdepend: [ItemsAdder, WorldGuard, WorldEdit]
+
+commands:
+  guild:
+    description: Main command for ZareonGuild plugin
+    aliases: [g, guilds]
+    usage: /guild <subcommand>
+    permission: zareonguild.use
+
+permissions:
+  zareonguild.use:
+    description: Allows basic usage of the plugin
+    default: true
+  zareonguild.admin:
+    description: Gives access to admin commands
+    default: op
+  zareonguild.create:
+    description: Allows creating a guild
+    default: true
+  zareonguild.disband:
+    description: Allows disbanding a guild
+    default: true
+  zareonguild.invite:
+    description: Allows inviting players to a guild
+    default: true
+  zareonguild.leave:
+    description: Allows leaving a guild
+    default: true
+  zareonguild.rename:
+    description: Allows renaming a guild
+    default: true

@@ -1,0 +1,380 @@
+# ZareonGuild Configuration
+# MiniMessage format is supported for all text elements
+
+# Database settings
+database:
+  type: YAML # YAML, MySQL or SQLite
+  mysql:
+    host: localhost
+    port: 3306
+    database: zareonguild
+    username: root
+    password: password
+    ssl: false
+
+# General settings
+settings:
+  # Prefix for all plugin messages
+  prefix: "<gradient:#4a00e0:#8e2de2>ZareonGuild</gradient> <dark_gray>»</dark_gray> "
+  
+  # Whether to use WorldGuard for regions (if false, custom implementation will be used)
+  use-worldguard: true
+  
+  # Whether to save guild data on every change or periodically
+  save-on-change: true
+  save-interval-minutes: 10
+  
+  # Maximum number of members in a guild
+  max-members: 20
+  
+  # Cooldown for guild creation (in seconds)
+  creation-cooldown: 300
+
+# Economy settings (Vault)
+economy:
+  # Cost to create a guild
+  creation-cost: 5000
+  
+  # Cost to rename a guild
+  rename-cost: 2000
+  
+  # Whether to return money when a guild is disbanded
+  refund-on-disband: false
+  refund-percentage: 50
+
+# Guild ranks configuration
+ranks:
+  beginner:
+    name: "Beginner"
+    display: "<gray>Beginner</gray>"
+    permissions:
+      - USE_PRIVATE_BLOCKS
+      - USE_TNT
+  veteran:
+    name: "Veteran"
+    display: "<gold>Veteran</gold>"
+    permissions:
+      - USE_PRIVATE_BLOCKS
+      - USE_TNT
+      - INVITE_MEMBERS
+  master:
+    name: "Master"
+    display: "<dark_purple>Master</dark_purple>"
+    permissions:
+      - USE_PRIVATE_BLOCKS
+      - USE_TNT
+      - INVITE_MEMBERS
+      - CRAFT_PRIVATE_BLOCKS
+      - CRAFT_TNT
+  righthand:
+    name: "Right-hand Man"
+    display: "<red>Right-hand Man</red>"
+    permissions:
+      - USE_PRIVATE_BLOCKS
+      - USE_TNT
+      - INVITE_MEMBERS
+      - CRAFT_PRIVATE_BLOCKS
+      - CRAFT_TNT
+      - PROMOTE_MEMBERS
+      - DEMOTE_MEMBERS
+  leader:
+    name: "Leader"
+    display: "<dark_red>Leader</dark_red>"
+    permissions:
+      - "*"
+
+# Guild levels configuration
+levels:
+  "1":
+    display: "<gray>Level 1</gray>"
+    requirements:
+      money: 0
+      resources:
+        # Format: MATERIAL:AMOUNT
+        STONE: 64
+        IRON_INGOT: 10
+    unlocks:
+      - SMALL_PRIVATE_BLOCKS
+  "2":
+    display: "<green>Level 2</green>"
+    requirements:
+      money: 5000
+      resources:
+        STONE: 128
+        IRON_INGOT: 32
+        GOLD_INGOT: 16
+    unlocks:
+      - SMALL_TNT
+  "3":
+    display: "<aqua>Level 3</aqua>"
+    requirements:
+      money: 15000
+      resources:
+        STONE: 256
+        IRON_INGOT: 64
+        GOLD_INGOT: 32
+        DIAMOND: 16
+    unlocks:
+      - MEDIUM_PRIVATE_BLOCKS
+      - MEDIUM_TNT
+  "4":
+    display: "<light_purple>Level 4</light_purple>"
+    requirements:
+      money: 30000
+      resources:
+        STONE: 512
+        IRON_INGOT: 128
+        GOLD_INGOT: 64
+        DIAMOND: 32
+        NETHERITE_INGOT: 4
+    unlocks:
+      - LARGE_PRIVATE_BLOCKS
+  "5":
+    display: "<gold>Level 5</gold>"
+    requirements:
+      money: 50000
+      resources:
+        STONE: 1024
+        IRON_INGOT: 256
+        GOLD_INGOT: 128
+        DIAMOND: 64
+        NETHERITE_INGOT: 8
+        EMERALD: 32
+    unlocks:
+      - LARGE_TNT
+
+# Private block configuration
+private-blocks:
+  small:
+    display: "<gray>Small Private Block</gray>"
+    description: "<gray>A small area protected for guild members</gray>"
+    radius: 5
+    height: 10
+    vanilla-blocks:
+      - IRON_BLOCK
+    itemsadder-blocks:
+      - "guild:small_protection_block"
+    craft:
+      shape:
+        - "III"
+        - "IGI"
+        - "III"
+      ingredients:
+        I: IRON_INGOT
+        G: GOLD_INGOT
+  medium:
+    display: "<blue>Medium Private Block</blue>"
+    description: "<blue>A medium area protected for guild members</blue>"
+    radius: 10
+    height: 15
+    vanilla-blocks:
+      - GOLD_BLOCK
+    itemsadder-blocks:
+      - "guild:medium_protection_block"
+    craft:
+      shape:
+        - "GGG"
+        - "GDG"
+        - "GGG"
+      ingredients:
+        G: GOLD_INGOT
+        D: DIAMOND
+  large:
+    display: "<purple>Large Private Block</purple>"
+    description: "<purple>A large area protected for guild members</purple>"
+    radius: 15
+    height: 20
+    vanilla-blocks:
+      - DIAMOND_BLOCK
+    itemsadder-blocks:
+      - "guild:large_protection_block"
+    craft:
+      shape:
+        - "DDD"
+        - "DND"
+        - "DDD"
+      ingredients:
+        D: DIAMOND
+        N: NETHERITE_INGOT
+
+# Custom TNT configuration
+tnt:
+  small:
+    display: "<gray>Small Guild TNT</gray>"
+    description: "<gray>A small explosion that can break obsidian and water</gray>"
+    power: 4
+    breaks-obsidian: true
+    breaks-water: true
+    craft:
+      shape:
+        - "GTG"
+        - "TNT"
+        - "GTG"
+      ingredients:
+        G: GUNPOWDER
+        T: TNT
+        N: GOLD_INGOT
+  medium:
+    display: "<blue>Medium Guild TNT</blue>"
+    description: "<blue>A medium explosion that can break obsidian and water</blue>"
+    power: 6
+    breaks-obsidian: true
+    breaks-water: true
+    craft:
+      shape:
+        - "DTD"
+        - "TNT"
+        - "DTD"
+      ingredients:
+        D: DIAMOND
+        T: TNT
+        N: GOLD_BLOCK
+  large:
+    display: "<purple>Large Guild TNT</purple>"
+    description: "<purple>A large explosion that can break obsidian and water</purple>"
+    power: 8
+    breaks-obsidian: true
+    breaks-water: true
+    craft:
+      shape:
+        - "NTN"
+        - "TET"
+        - "NTN"
+      ingredients:
+        N: NETHERITE_INGOT
+        T: TNT
+        E: EMERALD
+
+# Region flags (admin only)
+region-flags:
+  # Whether non-guild members can enter guild regions
+  non-member-entry: false
+  
+  # Whether PvP is allowed in guild regions
+  pvp: false
+  
+  # Whether mobs can spawn in guild regions
+  mob-spawning: false
+  
+  # Whether explosions (except guild TNT) can damage blocks in guild regions
+  explosions: false
+  
+  # Whether fire can spread in guild regions
+  fire-spread: false
+  
+  # Whether non-guild members can interact with blocks in guild regions
+  non-member-interact: false
+
+# GUI configuration
+gui:
+  main-menu:
+    title: "<gradient:#4a00e0:#8e2de2>Guild Menu</gradient>"
+    size: 54
+    items:
+      members:
+        slot: 11
+        material: PLAYER_HEAD
+        display: "<gold>Guild Members</gold>"
+        lore:
+          - "<gray>View and manage guild members</gray>"
+          - "<gray>Promote or demote members</gray>"
+          - ""
+          - "<yellow>Click to open</yellow>"
+      level:
+        slot: 13
+        material: EXPERIENCE_BOTTLE
+        display: "<aqua>Guild Level</aqua>"
+        lore:
+          - "<gray>Current level: <level></gray>"
+          - "<gray>Level up your guild to unlock</gray>"
+          - "<gray>new features and abilities</gray>"
+          - ""
+          - "<yellow>Click to view level-up requirements</yellow>"
+      regions:
+        slot: 15
+        material: BEACON
+        display: "<light_purple>Guild Regions</light_purple>"
+        lore:
+          - "<gray>Manage your guild's protected regions</gray>"
+          - "<gray>Place private blocks to create regions</gray>"
+          - ""
+          - "<yellow>Click to manage regions</yellow>"
+      flags:
+        slot: 29
+        material: SHIELD
+        display: "<green>Region Flags</green>"
+        lore:
+          - "<gray>View your guild's region flags</gray>"
+          - "<gray>Region flags control what is allowed</gray>"
+          - "<gray>in your guild's territory</gray>"
+          - ""
+          - "<yellow>Click to view flags</yellow>"
+      tnt:
+        slot: 33
+        material: TNT
+        display: "<red>Guild TNT</red>"
+        lore:
+          - "<gray>Craft special TNT for your guild</gray>"
+          - "<gray>These can break obsidian and water</gray>"
+          - ""
+          - "<yellow>Click to view TNT recipes</yellow>"
+      information:
+        slot: 49
+        material: BOOK
+        display: "<gold>Guild Information</gold>"
+        lore:
+          - "<gray>Name: <name></gray>"
+          - "<gray>Leader: <leader></gray>"
+          - "<gray>Members: <count>/<max></gray>"
+          - "<gray>Created: <created></gray>"
+          - ""
+          - "<gray>Tag: <tag></gray>"
+  
+  # Additional GUI menus would be defined here
+
+# Messages
+messages:
+  general:
+    no-permission: "<red>You don't have permission to use this command!</red>"
+    not-in-guild: "<red>You are not in a guild!</red>"
+    already-in-guild: "<red>You are already in a guild!</red>"
+    player-not-found: "<red>Player not found!</red>"
+    guild-not-found: "<red>Guild not found!</red>"
+    not-leader: "<red>You must be the guild leader to do this!</red>"
+    insufficient-rank: "<red>Your rank is too low to perform this action!</red>"
+    insufficient-funds: "<red>You don't have enough money for this action!</red>"
+    cooldown: "<red>You must wait <time> before using this command again!</red>"
+    
+  creation:
+    success: "<green>Guild <name> has been created successfully!</green>"
+    name-taken: "<red>A guild with that name already exists!</red>"
+    invalid-name: "<red>Invalid guild name! Use only alphanumeric characters and underscores.</red>"
+    
+  invitation:
+    sent: "<green>Invitation sent to <player>!</green>"
+    received: "<aqua><player> has invited you to join <guild>!</aqua> <click:run_command:/guild accept><green>[ACCEPT]</green></click>"
+    accepted: "<green>You have joined the guild <guild>!</green>"
+    declined: "<red>You have declined the invitation to join <guild>!</red>"
+    expired: "<red>The invitation has expired!</red>"
+    
+  members:
+    joined: "<green><player> has joined the guild!</green>"
+    left: "<yellow><player> has left the guild!</yellow>"
+    kicked: "<red><player> has been kicked from the guild!</red>"
+    promoted: "<green><player> has been promoted to <rank>!</green>"
+    demoted: "<yellow><player> has been demoted to <rank>!</yellow>"
+    
+  guild:
+    disbanded: "<red>The guild has been disbanded!</red>"
+    renamed: "<green>Guild renamed from <old> to <new>!</green>"
+    level-up: "<gold>The guild has leveled up to level <level>!</gold>"
+    
+  regions:
+    created: "<green>A new protected region has been created!</green>"
+    removed: "<yellow>The protected region has been removed!</yellow>"
+    cannot-place: "<red>You can't place a private block here!</red>"
+    cannot-craft: "<red>Your guild level is too low to craft this block!</red>"
+    
+  tnt:
+    crafted: "<green>You have crafted <type> TNT!</green>"
+    cannot-craft: "<red>Your guild level is too low to craft this TNT!</red>"
