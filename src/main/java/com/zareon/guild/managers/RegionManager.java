@@ -1,202 +1,382 @@
 package com.zareon.guild.managers;
 
-import com.zareon.guild.Zzareon.guild.models.Guild;
-import net.milkbowl.vault.economy.Economy;
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
-import org.bukkit.plugin.RegisteredServiceProvider;
+import com.zareon.guild.ZareonGuild;
+import com.zareon.guild.models.Guild;
+import com.zareon.guild.models.GuildRegion;
+import org.bukkit.Location;
+import org.bukkit.World;
+import org.bukkit.configuration.ConfigurationSection;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
-public class EconomyManager {
-
+public class RegionManager {
     private final ZareonGuild plugin;
-    private Economy economy = null;
-    private final Map<UUID, Double> guildBalances = new HashMap<>();
+    private Map<String, List<GuildRegion>> guildRegions;
+    private final int maxRegionsPerGuild;
+    private final int maxRegionRadius;
+    private final int minDistanceBetweenRegions;
 
-    public EconomyManager(ZareonGuild plugin) {
+    // Типы регионов и их параметры
+    private final Map<String, Integer> regionTypeRadiusLimits;
+    private final Map<String, Integer> regionTypeHeightLimits;
+    private final Map<String, Integer> regionTypeCosts;
+
+    public RegionManager(ZareonGuild plugin) {
         this.plugin = plugin;
-        setupEconomy();
-        loadGuildBalances();
+        this.guildRegions = new HashMap<>();
+        this.maxRegionsPerGuild = plugin.getConfig().getInt("regions.max-per-guild", 5);
+        this.maxRegionRadius = plugin.getConfig().getInt("regions.max-radius", 50);
+        this.minDistanceBetweenRegions = plugin.getConfig().getInt("regions.min-distance", 100);
+
+        // Инициализируем типы регионов
+        this.regionTypeRadiusLimits = new HashMap<>();
+        this.regionTypeHeightLimits = new HashMap<>();
+        this.regionTypeCosts = new HashMap<>();
+        initializeRegionTypes();
     }
 
-    private void setupEconomy() {
-        if (Bukkit.getPluginManager().getPlugin("Vault") == null) {
-            plugin.getLogger().warning("Vault не найден! Экономическая система отключена.");
-            return;
-        }
+    private void initializeRegionTypes() {
+        // SMALL регион
+        regionTypeRadiusLimits.put("SMALL", 25);
+        regionTypeHeightLimits.put("SMALL", 50);
+        regionTypeCosts.put("SMALL", 1000);
 
-        RegisteredServiceProvider<Economy> rsp = Bukkit.getServicesManager().getRegistration(Economy.class);
-        if (rsp == null) {
-            plugin.getLogger().warning("Экономический плагин не найден!");
-            return;
-        }
+        // MEDIUM регион
+        regionTypeRadiusLimits.put("MEDIUM", 40);
+        regionTypeHeightLimits.put("MEDIUM", 80);
+        regionTypeCosts.put("MEDIUM", 5000);
 
-        economy = rsp.getProvider();
-        plugin.getLogger().info("Подключен к экономической системе: " + economy.getName());
+        // LARGE регион
+        regionTypeRadiusLimits.put("LARGE", 60);
+        regionTypeHeightLimits.put("LARGE", 120);
+        regionTypeCosts.put("LARGE", 15000);
     }
 
-    /**
-     * Загружает балансы всех гильдий из базы данных
-     */
-    private void loadGuildBalances() {
-        try (Connection conn = plugin.getDatabaseManager().getConnection()) {
-            String query = "SELECT guild_id, balance FROM guild_economy";
-            try (PreparedStatement stmt = conn.prepareStatement(query);
-                 ResultSet rs = stmt.executeQuery()) {
+    public boolean createRegion(String guildName, Location center, int radius, int height, String type) {
+        Guild guild = plugin.getGuildManager().getGuild(guildName);
+        if (guild == null) return false;
 
-                while (rs.next()) {
-                    UUID guildId = UUID.fromString(rs.getString("guild_id"));
-                    double balance = rs.getDouble("balance");
-                    guildBalances.put(guildId, balance);
+        // Проверяем лимит регионов
+        List<GuildRegion> regions = getGuildRegions(guildName);
+        if (regions.size() >= maxRegionsPerGuild) return false;
+
+        // Проверяем корректность типа региона
+        if (!isValidRegionType(type)) return false;
+
+        // Проверяем размер региона для данного типа
+        if (!isValidRegionSize(type, radius, height)) return false;
+
+        // Проимальное расстояние до других регионов
+        if (!isValidDistance(center, radius, guildName)) return false;
+
+        // Проверяем, достаточно ли средств у гильдии
+        if (conomyManager().hasEconomy()) {
+            int cost = getRegionCost(type);
+            double guildBalance = plugin.getEconomyManager().getGuildBalance(guildName);
+            if (guildBalance < cost) return false;
+
+            // Списываем средства
+            plugin.getEconomyManager().setGuildBalance(guildName, guildBalance - cost);
+        }
+
+        GuildRegion region = new GuildRegion(center, radius, height, type);
+        regions.add(region);
+        guildRegions.put(guildName, regions);
+
+        saveGuildRegions(guildName);
+        return true;
+    }
+
+    public boolean deleteRegion(String guildName, UUID regionId) {
+        List<GuildRegion> regions = getGuildRegions(guildName);
+        GuildRegion regionToRemove = regions.stream()
+                .filter(region -> region.getId().equals(regionId))
+                .findFirst()
+                .orElse(null);
+
+        if (regionToRemove == null) return false;
+
+        // Возвращаем часть средств при удалении региона (50%)
+        if (plugin.getEconomyManager().hasEconomy()) {
+            int refund = getRegionCost(regionToRemove.getType()) / 2;
+            double currentBalance = plugin.getEconomyManager().getGuildBalance(guildName);
+            plugin.getEconomyManager().setGuildBalance(guildName, currentBalance + refund);
+        }
+
+        regions.remove(regionToRemove);
+        guildRegions.put(guildName, regions);
+        saveGuildRegions(guildName);
+        return true;
+    }
+
+    public List<GuildRegion> getGuildRegions(String guildName) {
+        return guildRegions.getOrDefault(guildName, new ArrayList<>());
+    }
+
+    public GuildRegion getRegion(UUID regionId) {
+        for (List<GuildRegion> regions : guildRegions.values()) {
+            for (GuildRegion region : regions) {
+                if (region.getId().equals(regionId)) {
+                    return region;
                 }
             }
-        } catch (SQLException e) {
-            plugin.getLogger().severe("Ошибка загрузки балансов гильдий: " + e.getMessage());
         }
+        return null;
     }
 
-    /**
-     * Получает баланс гильдии
-     */
-    public double getGuildBalance(UUID guildId) {
-        return guildBalances.getOrDefault(guildId, 0.0);
+    public GuildRegion getRegionAt(Location location) {
+        for (Map.Entry<String, List<GuildRegion>> entry : guildRegions.entrySet()) {
+            for (GuildRegion region : entry.getValue()) {
+                if (region.isInRegion(location)) {
+                    return region;
+                }
+            }
+        }
+        return null;
     }
 
-    /**
-     * Устанавливает баланс гильдии
-     */
-    public void setGuildBalance(UUID) {
-        guildBalances.put(guildId, Math.max(0, amount));
-        saveGuildBalance(guildId);
+    public String getRegionOwner(Location location) {
+        for (Map.Entry<String, List<GuildRegion>> entry : guildRegions.entrySet()) {
+            for (GuildRegion region : entry.getValue()) {
+                if (region.isInRegion(location)) {
+                    return entry.getKey();
+                }
+            }
+        }
+        return null;
     }
 
-    /**
-     * Добавляет деньги в казну гильдии
-     */ addToGuildBalance(UUID guildId, double amount) {
-        if (amount <= 0) return false;
+    public boolean isInGuildRegion(Location location, String guildName) {
+        List<GuildRegion> regions = getGuildRegions(guildName);
+        return regions.stream().anyMatch(region -> region.isInRegion(location));
+    }
 
-        double currentBalance = getGuildBalance(guildId);
-        setGuildBalance(guildId, currentBalance + amount);
+    public boolean canBuildAt(Location location, String playerGuild) {
+        String regionOwner = getRegionOwner(location);
+
+        // Если региона нет, строить можно
+        if (regionOwner == null) return true;
+
+        // Если игрок в той же гильдии, что и владелец региона
+        return regionOwner.equals(playerGuild);
+    }
+
+    private boolean isValidRegionType(String type) {
+        return regionTypeRadiusLimits.containsKey(type);
+    }
+
+    private boolean isValidRegionSize(String type, int radius, int height) {
+        Integer maxRadius = regionTypeRadiusLimits.get(type);
+        Integer maxHeight = regionTypeHeightLimits.get(type);
+
+        return maxRadius != null && maxHeight != null &&
+                radius <= maxRadius && height <= maxHeight &&
+                radius > 0 && height > 0;
+    }
+
+    private boolean isValidDistance(Location center, int radius, String excludeGuild) {
+        for (Map.Entry<String, List<GuildRegion>> entry : guildRegions.entrySet()) {
+            if (entry.getKey().equals(excludeGuild)) continue;
+
+            for (GuildRegion region : entry.getValue()) {
+                if (!region.getCenter().getWorld().equals(center.getWorld())) continue;
+
+                double distance = region.getCenter().distance(center);
+                double minRequired = radius + region.getRadius() + minDistanceBetweenRegions;
+
+                if (distance < minRequired) {
+                    return false;
+                }
+            }
+        }
         return true;
     }
 
-    /**
-     * Снимает деньги с казны гильдии
-     */
-    public boolean removeFromGuildBalance(UUID guildId, double amount) {
-        if (amount <= 0) return false;
+    public void deleteAllGuildRegions(String guildName) {
+        guildRegions.remove(guildName);
+        plugin.getConfig().set("guild-regions." + guildName, null);
+        plugin.saveConfig();
+    }
 
-        double currentBalance = getGuildBalance(guildId);
-        if (currentBalance < amount) return false;
+    public int getRegionCount(String guildName) {
+        return getGuildRegions(guildName).size();
+    }
 
-        setGuildBalance(guildId, currentBalance - amount);
+    public boolean hasRegionLimit(String guildName) {
+        return getRegionCount(guildName) >= maxRegionsPerGuild;
+    }
+
+    public List<GuildRegion> getRegionsInWorld(World world) {
+        List<GuildRegion> worldRegions = new ArrayList<>();
+        for (List<GuildRegion> regions : guildRegions.values()) {
+            for (GuildRegion region : regions) {
+                if (region.getCenter().getWorld().equals(world)) {
+                    worldRegions.add(region);
+                }
+            }
+        }
+        return worldRegions;
+    }
+
+    public List<GuildRegion> getNearbyRegions(Location location, double distance) {
+        List<GuildRegion> nearbyRegions = new ArrayList<>();
+        for (List<GuildRegion> regions : guildRegions.values()) {
+            for (GuildRegion region : regions) {
+                if (region.getCenter().getWorld().equals(location.getWorld()) &&
+                        region.getCenter().distance(location) <= distance) {
+                    nearbyRegions.add(region);
+                }
+            }
+        }
+        return nearbyRegions;
+    }
+
+    public int getMaxRegionRadius() {
+        return maxRegionRadius;
+    }
+
+    public int getMaxRegionsPerGuild() {
+        return maxRegionsPerGuild;
+    }
+
+    public int getRegionCost(String type) {
+        return regionTypeCosts.getOrDefault(type, 0);
+    }
+
+    public int getMaxRadiusForType(String type) {
+        return regionTypeRadiusLimits.getOrDefault(type, 0);
+    }
+
+    public int getMaxHeightForType(String type) {
+        return regionTypeHeightLimits.getOrDefault(type, 0);
+    }
+
+    public SetailableRegionTypes() {
+        return regionTypeRadiusLimits.keySet();
+    }
+
+    public List<GuildRegion> getOverlappingRegions(Location center, int radius, String excludeGuild) {
+        List<GuildRegion> overlappingfor (Map.Entry<String, List<GuildRegion>> entry : guildRegions.entrySet()) {
+            if (entry.getKey().equals(excludeGuild)) continue;
+
+            for (GuildRegion region : entry.getValue()) {
+                if (!region.getCenter().getWorld().equals(center.getWorld())) continue;
+
+                double distance = region.getCenter().distance(center);
+                if (distance < radius + region.getRadius()) {
+                    overlapping.add(region);
+                }
+            }
+        }
+
+        return overlapping;
+    }
+
+    public boolean canCreateRegionType(String guildName, String type) {
+        // Проверяем экономические требования
+        if (plugin.getEconomyManager().hasEconomy()) {
+            double balance = plugin.getEconomyManager().getGuildBalance(guildName);
+            int cost = getRegionCost(type);
+            if (balance < cost) return false;
+        }
+
+        // Проверяем лимит регионов
+        if (hasRegionLimit(guildName)) return false;
+
         return true;
     }
 
-    /**
-     * Переводит деньги от игрока в казну гильдии
-     */
-    public boolean depositToGuild(Player player, UUID guildId, double amount) {
-        if (economy == null || amount <= 0) return false; (!economy.has(player, amount)) {
-            return false;
-        }
+    public Map<String, Object> getRegionInfo(UUID regionId) {
+        GuildRegion region = getRegion(regionId);
+        if (region == null) return null;
 
-        if (economy.withdrawPlayer(player, amount).transactionSuccess()) {
-            addToGuildBalance(guildId, amount);
-            return true;
-        }
+        Map<String, Object> info = new HashMap<>();
+        info.put("id", region.getId().toString());
+        info.put("type", region.getType());
+        info.put("radius", region.getRadius());
+        info.put("height", region.getHeight());
+        info.put("center", region.getCenter());
+        info.put("created", new Date(region.getCreatedTime()));
 
-        return false;
-    }
-
-    /**
-     * Переводит деньги из казны гильдии игроку
-     */
-    public boolean withdrawFromGuild(Player player, UUID guildId, double amount) {
-        if (economy == null || amount <= 0) return false;
-
-        if (!removeFromGuildBalance(guildId, amount)) {
-            return false;
-        }
-
-        if (economy.depositPlayer(player, amount).transactionSuccess()) {
-            return true;
-        } else {
-            // Возвращаем деньги обратно в казну если перевод не удался
-            addToGuildBalance(guildId, amount);
-            return false;
-        }
-    }
-
-    /**
-     * Переводит деньги между гильдиями
-     */
-    public boolean transferBetweenGuilds(UUID fromGuildId, UUID toGuildId, double amount) {
-        if (amount <= 0) return false;
-
-        if (removeFromGuildBalance(fromGuildId, amount)) {
-            addToGuildBalance(toGuildId, amount);
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Сохраняет баланс гильдии в базу данных
-     */
-    private void saveGuildBalance(UUID guildId) {
-        try (Connection conn = plugin.getDatabaseManager().getConnection()) {
-            String query = "INSERT INTO guild_economy (guild_id, balance) VALUES (?, ?) " +
-                    "ON DUPLICATE KEY UPDATE balance = VALUES(balance)";
-            try (PreparedStatement stmt = conn.prepareStatement(query)) {
-                stmt.setString(1, guildId.toString());
-                stmt.setDouble(2, getGuildBalance(guildId));
-                stmt.executeUpdate();
+        // Находим владельца
+        for (Map.Entry<String, List<GuildRegion>> entry : guildRegions.entrySet()) {
+            if (entry.getValue().contains(region)) {
+                info.put("owner", entry.getKey());
+                break;
             }
-        } catch (SQLException e) {
-            plugin.getLogger().severe("Ошибка сохранения баланса гильдии: " + e.getMessage());
         }
+
+        return info;
     }
 
-    /**
-     * Форматирует сумму для отображения
-     */
-    public String formatMoney(double amount) {
-        if (economy != null) {
-            return economy.format(amount);
+    public List<GuildRegion> getRegionsByType(String guildName, String type) {
+        return getGuildRegions(guildName).stream()
+                .filter(region -> region.getType().equals(type))
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    private void saveGuildRegions(String guildName) {
+        List<GuildRegion> regions = getGuildRegions(guildName);
+        List<Map<String, Object>> serializedRegions = new ArrayList<>();
+
+        for (GuildRegion region : regions) {
+            serializedRegions.add(region.serialize());
         }
-        return String.format("%.2f", amount);
+
+        plugin.getConfig().set("guild-regions." + guildName, serializedRegions);
+        plugin.saveConfig();
     }
 
-    /**
-     * Проверяет, подключена ли экономическая система
-     */
-    public boolean isEconomyEnabled() {
-        return economy != null;
-    }
+    public void loadGuildRegions() {
+        ConfigurationSection regionsSection = plugin.getConfig().getConfigurationSection("guild-regions");
+        if (regionsSection == null) return;
 
-    /**
-     * Удаляет экономические данные гильдии
-     */
-    public void deleteGuildEconomy(UUID guildId) {
-        guildBalances.remove(guildId);
+        for (String guildName : regionsSection.getKeys(false)) {
+            List<GuildRegion> regions = new ArrayList<>();
+            List<Map<?, ?>> serializedRegions = regionsSection.getMapList(guildName);
 
-        try (Connection conn = plugin.getDatabaseManager().getConnection()) {
-            String query = "DELETE FROM guild_economy WHERE guild_id = ?";
-            try (PreparedStatement stmt = conn.prepareStatement(query)) {
-                stmt.setString(1, guildId.toString());
-                stmt.executeUpdate();
+            for (Map<?, ?> serializedRegion : serializedRegions) {
+                try {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> regionMap = (Map<String, Object>) serializedRegion;
+                    GuildRegion region = new GuildRegion(regionMap);
+                    regions.add(region);
+                } catch (Exception e) {
+                    plugin.getLogger().warning("Не удалось загрузить регион для гильдии " + guildName + ": " + e.getMessage());
+                }
             }
-        } catch (SQLException e) {
-            plugin.getLogger().severe("Ошибка удаления экономических данных гильдии: " + e.getMessage());
+
+            guildRegions.put(guildName, regions);
+        }
+
+        plugin.getLogger().info("Загружено регионов: " + guildRegions.values().stream().mapToInt(List::size).sum());
+    }
+
+    // Методы для администрирования
+    public void setRegionTypeLimits(String type, int maxRadius, int maxHeight, int cost) {
+        regionTypeRadiusLimits.put(type, maxRadius);
+        regionTypeHeightLimits.put(type, maxHeight);
+        regionTypeCosts.put(type, cost);
+
+        // Сохраняем в конфиг
+        plugin.getConfig().set("region-types." + type + ".max-radius", maxRadius);
+        plugin.getConfig().set("region-types." + type + ".max-height", maxHeight);
+        plugin.getConfig().set("region-types." + type + ".cost", cost);
+        plugin.saveConfig();
+    }
+
+    public void loadRegionTypes() {
+        ConfigurationSection typesSection = plugin.getConfig().getConfigurationSection("region-types");
+        if (typesSection != null) {
+            for (String type : typesSection.getKeys(false)) {
+                int maxRadius = typesSection.getInt(type + ".max-radius", 25);
+                int maxHeight = typesSection.getInt(type + ".max-height", 50);
+                int cost = typesSection.getInt(type + ".cost", 1000);
+
+                regionTypeRadiusLimits.put(type, maxRadius);
+                regionTypeHeightLimits.put(type, maxHeight);
+                regionTypeCosts.put(type, cost);
+            }
         }
     }
 }
