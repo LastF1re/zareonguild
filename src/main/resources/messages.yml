@@ -1,0 +1,55 @@
+# ZareonGuild - messages.yml (MiniMessage format)
+
+prefix: "<gray>[</gray><aqua>ZareonGuild</aqua><gray>]</gray> "
+
+general:
+  no_permission: "<red>You don't have permission.</red>"
+  only_players: "<red>Only players can use this command.</red>"
+  unknown_subcommand: "<red>Unknown subcommand. Use /guild help</red>"
+  not_in_guild: "<red>You are not in a guild.</red>"
+  already_in_guild: "<red>You are already in a guild.</red>"
+  player_not_found: "<red>Player not found.</red>"
+  guild_not_found: "<red>Guild not found.</red>"
+
+guild:
+  created: "<green>Guild <white><name></white> created! You are the Leader.</green>"
+  name_taken: "<red>Guild name is already taken.</red>"
+  invalid_name: "<red>Invalid guild name. Use 3-16 letters/numbers/underscores.</red>"
+  left: "<yellow>You left guild <white><name></white>.</yellow>"
+  disbanded: "<red>Guild <white><name></white> has been disbanded.</red>"
+  renamed: "<green>Guild renamed to <white><name></white>.</green>"
+  invite_sent: "<green>Invitation sent to <white><player></white>.</green>"
+  invited:
+    line1: "<aqua>You were invited to join guild <white><name></white>.</aqua>"
+    button: "<green><bold>[ ACCEPT ]</bold></green>"
+    hover: "<gray>Click to accept invite</gray>"
+  accepted: "<green>You joined guild <white><name></white>!</green>"
+  member_list_title: "<aqua>Guild members:</aqua>"
+  member_line: "<white>-</white> <player> <gray>(</gray><rank><gray>)</gray>"
+
+rank:
+  promoted: "<green>Promoted <white><player></white> to <rank>.</green>"
+  demoted: "<yellow>Demoted <white><player></white> to <rank>.</yellow>"
+  cannot_promote: "<red>You cannot promote this member.</red>"
+  cannot_demote: "<red>You cannot demote this member.</red>"
+
+levels:
+  upgraded: "<green>Guild level upgraded to <white><level></white>!</green>"
+  max_level: "<red>Guild is already at max level.</red>"
+  insufficient: "<red>Not enough money or resources.</red>"
+  cost_line: "<gray>Cost:</gray> <gold>$<money></gold> <gray>|</gray> <white><resources></white>"
+
+blocks:
+  not_allowed_level: "<red>Your guild level is too low to place this block.</red>"
+  placed_region: "<green>Region created with radius <white><radius></white>.</green>"
+  region_exists: "<red>A region here overlaps with an existing one.</red>"
+
+tnt:
+  not_allowed_level: "<red>Your guild level is too low to craft this TNT.</red>"
+
+placeholders:
+  no_guild_tag: "<gray>-</gray>"
+  no_rank: "<gray>-</gray>"
+
+gui:
+  open: "<gray>Opening guild menu...</gray>"
